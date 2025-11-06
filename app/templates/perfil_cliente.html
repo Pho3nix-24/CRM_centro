@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}Perfil de {{ cliente.nombre }}{% endblock %}
+
+{% block content %}
+    <h2>Perfil del Cliente</h2>
+
+    <div class="profile-card">
+        <h3>{{ cliente.nombre }}</h3>
+        <p><strong>DNI:</strong> {{ cliente.dni or 'No registrado' }}</p>
+        <p><strong>Correo:</strong> {{ cliente.correo or 'No registrado' }}</p>
+        <p><strong>Celular:</strong> {{ cliente.celular or 'No registrado' }}</p>
+        <p><strong>Género:</strong> {{ cliente.genero or 'No registrado' }}</p>
+        <p><strong>Curso de Interés:</strong> {{ cliente.curso_interes or 'No especificado' }}</p>
+        <p><strong>Asesor Asignado:</strong> {{ cliente.asesor_asignado or 'No asignado' }}</p>
+        <p><strong>Estado:</strong> <span class="status-{{ cliente.estado }}">{{ cliente.estado|capitalize }}</span></p>
+
+        <div class="tags-section">
+            <strong>Etiquetas:</strong>
+            <div class="tags-container">
+                {% for etiqueta in etiquetas_cliente %}
+                    <span class="tag">
+                        {{ etiqueta.nombre }}
+                        <a href="{{ url_for('quitar_etiqueta', cliente_id=cliente.id, etiqueta_id=etiqueta.id) }}" class="remove-tag" title="Quitar etiqueta">×</a>
+                    </span>
+                {% else %}
+                    <span class="no-tags">Sin etiquetas asignadas.</span>
+                {% endfor %}
+            </div>
+
+            <form method="POST" action="{{ url_for('perfil_cliente', cliente_id=cliente.id) }}" class="tag-form">
+                <input type="hidden" name="form_type" value="etiqueta">
+                <input type="text" name="nombre_etiqueta" placeholder="Añadir nueva etiqueta..." autocomplete="off">
+                <button type="submit">Añadir</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="interaction-section">
+        <div class="interaction-form-container">
+            <h3>Registrar Nueva Interacción</h3>
+            <form method="POST" action="{{ url_for('perfil_cliente', cliente_id=cliente.id) }}" class="interaction-form">
+                <input type="hidden" name="form_type" value="interaccion">
+                <select name="tipo_interaccion" required>
+                    <option value="">-- Tipo de Interacción --</option>
+                    <option value="Llamada">Llamada</option>
+                    <option value="WhatsApp">WhatsApp</option>
+                    <option value="Email">Email</option>
+                    <option value="Reunión">Reunión</option>
+                    <option value="Otro">Otro</option>
+                </select>
+                <textarea name="notas" placeholder="Escribe aquí los detalles del contacto..." required></textarea>
+                <button type="submit">Guardar Interacción</button>
+            </form>
+        </div>
+
+        <div class="interaction-history-container">
+            <h3>Historial de Interacciones</h3>
+            <div class="history-list">
+                {% for interaccion in interacciones %}
+                <div class="interaction-item">
+                    <p class="interaction-meta">
+                        <strong>{{ interaccion.tipo_interaccion }}</strong> por <strong>{{ interaccion.asesor_nombre }}</strong>
+                        <span class="interaction-date">{{ interaccion.fecha_interaccion.strftime('%d/%m/%Y %H:%M') }}</span>
+                    </p>
+                    <p class="interaction-notes">{{ interaccion.notas }}</p>
+                </div>
+                {% else %}
+                <p class="message">No hay interacciones registradas para este cliente.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <h3>Historial de Pagos</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID Pago</th>
+                    <th>Fecha</th>
+                    <th>Cuota</th>
+                    <th>Tipo</th>
+                    <th>N° Operación</th>
+                    <th>Especialidad</th>
+                    <th>Asesor</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pago in pagos %}
+                <tr>
+                    <td>{{ pago.id }}</td>
+                    <td>{{ pago.fecha.strftime('%Y-%m-%d') if pago.fecha }}</td>
+                    <td>S/ {{ "%.2f"|format(pago.cuota or 0) }}</td>
+                    <td>{{ pago.tipo_de_cuota }}</td>
+                    <td>{{ pago.numero_operacion }}</td>
+                    <td>{{ pago.especialidad }}</td>
+                    <td>{{ pago.asesor }}</td>
+                    <td class="actions">
+                        <a href="{{ url_for('editar', id=pago.id) }}" class="action-icon" title="Editar Pago">✏️</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align:center;">Este cliente no tiene pagos registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .profile-card {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        max-width: 800px;
+        margin: 20px auto;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .profile-card h3 {
+        color: #004080;
+        margin-top: 0;
+    }
+    .profile-card p {
+        margin: 8px 0;
+    }
+    .status-activo { color: #28a745; font-weight: bold; }
+    .status-potencial { color: #ffc107; font-weight: bold; }
+    .status-inactivo { color: #dc3545; font-weight: bold; }
+
+    /* ESTILOS PARA LA SECCIÓN DE INTERACCIONES */
+    .interaction-section {
+        display: flex;
+        gap: 30px;
+        max-width: 1200px;
+        margin: 40px auto;
+        flex-wrap: wrap;
+    }
+    .interaction-form-container, .interaction-history-container {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .interaction-form-container {
+        flex: 1;
+        min-width: 300px;
+    }
+    .interaction-history-container {
+        flex: 2;
+        min-width: 400px;
+    }
+    .interaction-section h3 {
+        color: #004080;
+        margin-top: 0;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 10px;
+    }
+    .interaction-form select, .interaction-form textarea {
+        width: 100%;
+        margin-bottom: 15px;
+    }
+    .interaction-form textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+    .history-list {
+        max-height: 500px;
+        overflow-y: auto;
+        padding-right: 10px;
+    }
+    .interaction-item {
+        border-bottom: 1px solid #eee;
+        padding: 15px 5px;
+    }
+    .interaction-item:last-child {
+        border-bottom: none;
+    }
+    .interaction-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9em;
+        color: #555;
+        margin: 0 0 8px 0;
+    }
+    .interaction-date {
+        color: #888;
+    }
+    .interaction-notes {
+        margin: 0;
+        white-space: pre-wrap;
+    }
+
+    /* ESTILOS PARA LAS ETIQUETAS */
+    .tags-section {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #eee;
+    }
+    .tags-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .tag {
+        background-color: #007bff;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.9em;
+        display: inline-flex;
+        align-items: center;
+    }
+    .remove-tag {
+        color: white;
+        text-decoration: none;
+        margin-left: 8px;
+        font-weight: bold;
+        font-size: 1.2em;
+        line-height: 1;
+    }
+    .remove-tag:hover {
+        color: #ffdddd;
+    }
+    .no-tags {
+        font-style: italic;
+        color: #888;
+    }
+    .tag-form {
+        display: flex;
+        margin-top: 15px;
+        gap: 10px;
+    }
+    .tag-form input {
+        flex: 1;
+    }
+    .tag-form button {
+        padding: 8px 15px;
+        margin-top: 0;
+        width: auto; /* Ajustamos el ancho del botón */
+    }
+</style>
+{% endblock %}
