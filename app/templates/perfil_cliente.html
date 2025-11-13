@@ -27,8 +27,7 @@
                     <span class="no-tags">Sin etiquetas asignadas.</span>
                 {% endfor %}
             </div>
-
-            <form method="POST" action="{{ url_for('perfil_cliente', cliente_id=cliente.id) }}" class="tag-form">
+            <form method="POST" class="tag-form">
                 <input type="hidden" name="form_type" value="etiqueta">
                 <input type="text" name="nombre_etiqueta" placeholder="Añadir nueva etiqueta..." autocomplete="off">
                 <button type="submit">Añadir</button>
@@ -36,55 +35,96 @@
         </div>
     </div>
 
-    <div class="interaction-section">
-        <div class="interaction-form-container">
-            <h3>Registrar Nueva Interacción</h3>
-            <form method="POST" action="{{ url_for('perfil_cliente', cliente_id=cliente.id) }}" class="interaction-form">
-                <input type="hidden" name="form_type" value="interaccion">
+    <div class="activity-section">
+        
+        <div class="activity-forms-container">
+            <h3>Registrar Seguimiento</h3>
+            <form method="POST" class="interaction-form">
+                <input type="hidden" name="form_type" value="seguimiento">
+                <label for="tipo_interaccion">Tipo:</label>
                 <select name="tipo_interaccion" required>
-                    <option value="">-- Tipo de Interacción --</option>
+                    <option value="">-- Seleccionar Tipo --</option>
                     <option value="Llamada">Llamada</option>
                     <option value="WhatsApp">WhatsApp</option>
                     <option value="Email">Email</option>
-                    <option value="Reunión">Reunión</option>
+                    <option value="Revisión de Pago">Revisión de Pago</option>
+                    <option value="Soporte">Soporte</option>
                     <option value="Otro">Otro</option>
                 </select>
-                <textarea name="notas" placeholder="Escribe aquí los detalles del contacto..." required></textarea>
-                <button type="submit">Guardar Interacción</button>
+                
+                <label for="comentarios">Comentarios (Notas):</label>
+                <textarea name="comentarios" placeholder="Escribe aquí los detalles del contacto o la tarea pendiente..." required></textarea>
+                <button type="submit">Guardar Seguimiento</button>
             </form>
         </div>
 
-        <div class="interaction-history-container">
-            <h3>Historial de Interacciones</h3>
-            <div class="history-list">
-                {% for interaccion in interacciones %}
-                <div class="interaction-item">
-                    <p class="interaction-meta">
-                        <strong>{{ interaccion.tipo_interaccion }}</strong> por <strong>{{ interaccion.asesor_nombre }}</strong>
-                        <span class="interaction-date">{{ interaccion.fecha_interaccion.strftime('%d/%m/%Y %H:%M') }}</span>
-                    </p>
-                    <p class="interaction-notes">{{ interaccion.notas }}</p>
-                </div>
-                {% else %}
-                <p class="message">No hay interacciones registradas para este cliente.</p>
-                {% endfor %}
+        <div class="activity-history-container">
+            <h3>Historial de Seguimientos</h3>
+            <div class="table-container-modern">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th class="col-accion">Acción</th>
+                            <th class="col-estado">Estado</th>
+                            <th>Tipo</th>
+                            <th class="col-comentarios">Comentarios</th>
+                            <th>Fecha Creación</th>
+                            <th>Fecha Atención</th>
+                            <th>Asesor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in historial %}
+                        <tr>
+                            <td class="actions-cell">
+                                {% if item.estado == 'Por Atender' %}
+                                <form action="{{ url_for('atender_seguimiento', seguimiento_id=item.id) }}" method="POST" class="action-form">
+                                    <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
+                                    <button class="btn-icon btn-atender" title="Marcar como Atendido">✅</button>
+                                </form>
+                                {% endif %}
+                                <form action="{{ url_for('eliminar_seguimiento', seguimiento_id=item.id) }}" method="POST" class="action-form" onsubmit="return confirm('¿Eliminar este seguimiento?');">
+                                    <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
+                                    <button class="btn-icon btn-eliminar" title="Eliminar Seguimiento">🗑️</button>
+                                </form>
+                            </td>
+                            <td class="status-cell">
+                                {% if item.estado == 'Atendido' %}
+                                    <span class="status-dot status-atendido" title="Atendido"></span>
+                                {% else %}
+                                    <span class="status-dot status-por-atender" title="Por Atender"></span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.tipo_interaccion }}</td>
+                            <td class="comentarios-cell">{{ item.comentarios }}</td>
+                            <td>{{ item.fecha_creacion.strftime('%d/%m/%y %H:%M') }}</td>
+                            <td>
+                                {% if item.fecha_atencion %}
+                                    {{ item.fecha_atencion.strftime('%d/%m/%y %H:%M') }}
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </td>
+                            <td>{{ item.asesor_nombre }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" style="text-align: center;">No hay seguimientos registrados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
-
+    
     <h3>Historial de Pagos</h3>
     <div class="table-container">
         <table>
             <thead>
                 <tr>
-                    <th>ID Pago</th>
-                    <th>Fecha</th>
-                    <th>Cuota</th>
-                    <th>Tipo</th>
-                    <th>N° Operación</th>
-                    <th>Especialidad</th>
-                    <th>Asesor</th>
-                    <th>Acciones</th>
+                    <th>ID Pago</th> <th>Fecha</th> <th>Cuota</th> <th>Tipo</th>
+                    <th>N° Operación</th> <th>Especialidad</th> <th>Asesor</th> <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -113,136 +153,100 @@
 
 {% block styles %}
 <style>
-    .profile-card {
-        background: white;
-        padding: 25px;
-        border-radius: 10px;
-        max-width: 800px;
-        margin: 20px auto;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-    .profile-card h3 {
-        color: #004080;
-        margin-top: 0;
-    }
-    .profile-card p {
-        margin: 8px 0;
-    }
+    /* Estilos de Perfil y Etiquetas (Sin cambios) */
+    .profile-card { background: white; padding: 25px; border-radius: 10px; max-width: 800px; margin: 20px auto; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .profile-card h3 { color: #004080; margin-top: 0; }
+    .profile-card p { margin: 8px 0; }
     .status-activo { color: #28a745; font-weight: bold; }
     .status-potencial { color: #ffc107; font-weight: bold; }
     .status-inactivo { color: #dc3545; font-weight: bold; }
+    .tags-section { margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; }
+    .tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .tag { background-color: #007bff; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.9em; display: inline-flex; align-items: center; }
+    .remove-tag { color: white; text-decoration: none; margin-left: 8px; font-weight: bold; font-size: 1.2em; line-height: 1; }
+    .tag-form { display: flex; margin-top: 15px; gap: 10px; }
+    .tag-form input { flex: 1; }
+    .tag-form button { padding: 8px 15px; margin-top: 0; width: auto; }
 
-    /* ESTILOS PARA LA SECCIÓN DE INTERACCIONES */
-    .interaction-section {
-        display: flex;
-        gap: 30px;
-        max-width: 1200px;
-        margin: 40px auto;
-        flex-wrap: wrap;
+    /* Estilos de la Sección de Actividades (Sin cambios) */
+    .activity-section { display: flex; flex-wrap: wrap; gap: 30px; max-width: 1200px; margin: 40px auto; }
+    .activity-forms-container { flex: 1; min-width: 350px; max-width: 400px; background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); padding: 25px; height: fit-content; }
+    .activity-history-container { flex: 3; min-width: 500px; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .activity-history-container h3, .activity-forms-container h3 { color: #004080; margin-top: 0; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+    .interaction-form label { margin-top: 10px; font-weight: 600; }
+    .interaction-form select, .interaction-form textarea { width: 100%; margin-bottom: 15px; }
+    .interaction-form textarea { min-height: 100px; resize: vertical; }
+    .interaction-form button { width: 100%; margin-top: 10px; }
+
+    /* ✅ NUEVOS ESTILOS PARA LA TABLA DE HISTORIAL MODERNA */
+    .table-container-modern {
+        overflow-x: auto;
     }
-    .interaction-form-container, .interaction-history-container {
-        background: white;
-        padding: 25px;
-        border-radius: 10px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-    .interaction-form-container {
-        flex: 1;
-        min-width: 300px;
-    }
-    .interaction-history-container {
-        flex: 2;
-        min-width: 400px;
-    }
-    .interaction-section h3 {
-        color: #004080;
-        margin-top: 0;
-        border-bottom: 2px solid #e9ecef;
-        padding-bottom: 10px;
-    }
-    .interaction-form select, .interaction-form textarea {
+    .history-table {
         width: 100%;
-        margin-bottom: 15px;
+        border-collapse: collapse;
     }
-    .interaction-form textarea {
-        min-height: 120px;
-        resize: vertical;
-    }
-    .history-list {
-        max-height: 500px;
-        overflow-y: auto;
-        padding-right: 10px;
-    }
-    .interaction-item {
-        border-bottom: 1px solid #eee;
-        padding: 15px 5px;
-    }
-    .interaction-item:last-child {
-        border-bottom: none;
-    }
-    .interaction-meta {
-        display: flex;
-        justify-content: space-between;
+    .history-table th, .history-table td {
+        padding: 12px 10px;
+        text-align: left;
+        border-bottom: 1px solid #dee2e6; /* Líneas horizontales suaves */
+        vertical-align: middle;
         font-size: 0.9em;
-        color: #555;
-        margin: 0 0 8px 0;
     }
-    .interaction-date {
-        color: #888;
+    .history-table th {
+        font-weight: 600;
+        color: #ffffff;
+        background-color: #004080;
+        white-space: nowrap;
     }
-    .interaction-notes {
-        margin: 0;
+    .history-table .col-comentarios {
+        width: 35%; /* Más espacio para comentarios */
         white-space: pre-wrap;
     }
-
-    /* ESTILOS PARA LAS ETIQUETAS */
-    .tags-section {
-        margin-top: 15px;
-        padding-top: 15px;
-        border-top: 1px solid #eee;
-    }
-    .tags-container {
+    .history-table .col-accion { width: 80px; text-align: center; }
+    .history-table .col-estado { width: 30px; text-align: center; }
+    
+    /* Célula de Acciones (Botones) */
+    .actions-cell {
         display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 8px;
-    }
-    .tag {
-        background-color: #007bff;
-        color: white;
-        padding: 5px 10px;
-        border-radius: 15px;
-        font-size: 0.9em;
-        display: inline-flex;
-        align-items: center;
-    }
-    .remove-tag {
-        color: white;
-        text-decoration: none;
-        margin-left: 8px;
-        font-weight: bold;
-        font-size: 1.2em;
-        line-height: 1;
-    }
-    .remove-tag:hover {
-        color: #ffdddd;
-    }
-    .no-tags {
-        font-style: italic;
-        color: #888;
-    }
-    .tag-form {
-        display: flex;
-        margin-top: 15px;
         gap: 10px;
+        justify-content: center;
     }
-    .tag-form input {
-        flex: 1;
+    .action-form {
+        margin: 0;
+        padding: 0;
+        background: none;
+        box-shadow: none;
     }
-    .tag-form button {
-        padding: 8px 15px;
-        margin-top: 0;
-        width: auto; /* Ajustamos el ancho del botón */
+    .btn-icon {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        font-size: 1.3em; /* Iconos más grandes */
+        transition: transform 0.2s ease;
+    }
+    .btn-icon:hover {
+        transform: scale(1.3);
+    }
+    .btn-atender { color: #28a745; }
+    .btn-eliminar { color: #dc3545; }
+
+    /* Célula de Estado (Punto) */
+    .status-cell {
+        padding-right: 0px !important; /* Ajuste fino */
+    }
+    .status-dot {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+    .status-atendido {
+        background-color: #28a745;
+    }
+    .status-por-atender {
+        background-color: #fd7e14;
     }
 </style>
 {% endblock %}

@@ -299,16 +299,24 @@ def mover_oportunidad_api():
     except DB_Error as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# --- Rutas Comunes y de Edición ---
 @app.route("/cliente/<int:cliente_id>", methods=["GET", "POST"])
 @login_required
 def perfil_cliente(cliente_id):
     try:
         if request.method == "POST":
             form_type = request.form.get('form_type')
-            if form_type == 'interaccion':
-                db.registrar_interaccion(cliente_id, session.get('full_name'), request.form.get("tipo_interaccion"), request.form.get("notas"))
-                flash("Interacción registrada.", "success")
+            
+            if form_type == 'seguimiento':
+                tipo = request.form.get("tipo_interaccion")
+                comentarios = request.form.get("comentarios")
+                asesor = session.get('full_name')
+                
+                if tipo and comentarios:
+                    db.crear_seguimiento(cliente_id, asesor, tipo, comentarios)
+                    flash("Seguimiento registrado como 'Por Atender'.", "success")
+                else:
+                    flash("Tipo y Comentarios son obligatorios.", "error")
+            
             elif form_type == 'etiqueta':
                 nombre_etiqueta = request.form.get('nombre_etiqueta', '').strip()
                 if nombre_etiqueta:
@@ -317,32 +325,29 @@ def perfil_cliente(cliente_id):
                     flash("Etiqueta añadida.", "success")
                 else:
                     flash("El nombre de la etiqueta no puede estar vacío.", "error")
+            
             return redirect(url_for('perfil_cliente', cliente_id=cliente_id))
         
+        # --- Lógica GET (Modificada) ---
         cliente = db.obtener_cliente_por_id(cliente_id)
         if not cliente:
             flash("Cliente no encontrado.", "error")
             return redirect(url_for('consulta_leads'))
         
+        # ✅ ¡LÍNEA CORREGIDA!
+        # Antes decía: historial_completo = db.obtener_historial_completo_cliente(cliente_id)
+        historial_seguimientos = db.obtener_seguimientos_por_cliente(cliente_id)
+        
         return render_template("perfil_cliente.html", 
             cliente=cliente, 
             pagos=db.obtener_pagos_por_cliente(cliente_id),
-            interacciones=db.obtener_interacciones_por_cliente(cliente_id),
+            historial=historial_seguimientos, # Pasamos la variable correcta
             etiquetas_cliente=db.obtener_etiquetas_por_cliente(cliente_id),
             current_section='crm')
+            
     except DB_Error as e:
         flash(f"Error al cargar el perfil del cliente: {e}", "error")
         return redirect(url_for('consulta_leads'))
-
-@app.route("/cliente/<int:cliente_id>/etiqueta/quitar/<int:etiqueta_id>")
-@login_required
-def quitar_etiqueta(cliente_id, etiqueta_id):
-    try:
-        db.quitar_etiqueta_a_cliente(cliente_id, etiqueta_id)
-        flash("Etiqueta eliminada.", "success")
-    except DB_Error as e:
-        flash(f"Error al quitar la etiqueta: {e}", "error")
-    return redirect(url_for('perfil_cliente', cliente_id=cliente_id))
 
 @app.route("/editar/<int:id>", methods=["GET", "POST"])
 @login_required
@@ -468,6 +473,76 @@ def eliminar_lead(cliente_id):
         flash(f"Error al eliminar el lead: {e}", "error")
     
     return redirect(url_for('consulta_leads'))
+
+@app.route("/tarea/completar/<int:tarea_id>", methods=["POST"])
+@login_required
+def completar_tarea(tarea_id):
+    """Marca una tarea como completada."""
+    try:
+        db.marcar_tarea_completada(tarea_id)
+        flash("Tarea marcada como completada.", "success")
+    except DB_Error as e:
+        flash(f"Error al completar la tarea: {e}", "error")
+    
+    # Redirige de vuelta al perfil del cliente (si sabemos de dónde vino)
+    # Para hacerlo simple, redirigimos al dashboard del crm por ahora.
+    # Una mejor solución sería pasar el cliente_id en el formulario.
+    cliente_id = request.form.get('cliente_id')
+    if cliente_id:
+        return redirect(url_for('perfil_cliente', cliente_id=cliente_id))
+    else:
+        return redirect(url_for('crm_dashboard'))
+    
+@app.route("/seguimiento/atender/<int:seguimiento_id>", methods=["POST"])
+@login_required
+def atender_seguimiento(seguimiento_id):
+    """Marca un seguimiento como 'Atendido'."""
+    # Obtenemos el cliente_id del formulario para saber a dónde redirigir
+    cliente_id = request.form.get('cliente_id') 
+    try:
+        db.marcar_seguimiento_atendido(seguimiento_id)
+        flash("Seguimiento marcado como 'Atendido'.", "success")
+    except DB_Error as e:
+        flash(f"Error al actualizar el seguimiento: {e}", "error")
+
+    if cliente_id:
+        return redirect(url_for('perfil_cliente', cliente_id=cliente_id))
+    else:
+        return redirect(url_for('crm_dashboard')) # Ruta de respaldo
+    
+# Archivo: app/routes.py
+
+@app.route("/seguimiento/eliminar/<int:seguimiento_id>", methods=["POST"])
+@login_required
+def eliminar_seguimiento(seguimiento_id):
+    """Elimina un registro de seguimiento."""
+    cliente_id = request.form.get('cliente_id') # Para saber a dónde redirigir
+    try:
+        db.eliminar_seguimiento(seguimiento_id)
+        flash("Seguimiento eliminado correctamente.", "success")
+        
+        # Opcional: Registrar en auditoría
+        db.registrar_auditoria(session.get('full_name'), "ELIMINAR_SEGUIMIENTO", request.remote_addr, "seguimientos", seguimiento_id)
+        
+    except DB_Error as e:
+        flash(f"Error al eliminar el seguimiento: {e}", "error")
+    
+    if cliente_id:
+        return redirect(url_for('perfil_cliente', cliente_id=cliente_id))
+    else:
+        return redirect(url_for('crm_dashboard')) # Ruta de respaldo
+
+@app.route("/cliente/<int:cliente_id>/etiqueta/quitar/<int:etiqueta_id>")
+@login_required
+def quitar_etiqueta(cliente_id, etiqueta_id):
+    """Ruta para manejar la eliminación de una etiqueta de un cliente."""
+    try:
+        db.quitar_etiqueta_a_cliente(cliente_id, etiqueta_id)
+        flash("Etiqueta eliminada correctamente.", "success")
+    except DB_Error as e:
+        flash(f"Error al quitar la etiqueta: {e}", "error")
+    
+    return redirect(url_for('perfil_cliente', cliente_id=cliente_id))
 
 @app.route('/favicon.ico')
 def favicon():
